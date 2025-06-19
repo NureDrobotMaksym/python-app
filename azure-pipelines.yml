@@ -1,0 +1,46 @@
+trigger:
+- main
+
+variables:
+  azureContainerRegistry: 'nuremaksymdrobotregistry'
+  dockerImageName: 'python-app'
+  dockerImageTag: '$(Build.BuildId)'
+
+stages:
+- stage: BuildAndPush
+  displayName: 'Build and Push Docker Image'
+  jobs:
+  - job: BuildAndPushJob
+    displayName: 'Build and Push to ACR'
+    pool:
+      vmImage: 'ubuntu-latest'
+
+    steps:
+    - task: Docker@2
+      displayName: 'Login to Azure Container Registry'
+      inputs:
+        command: 'login'
+        containerRegistry: 'pythonappserviceconnection'
+
+    - task: Docker@2
+      displayName: 'Build Docker Image'
+      inputs:
+        command: 'build'
+        dockerfile: 'Dockerfile'
+        buildContext: '.'
+        arguments: '--pull'
+        tags: |
+          $(azureContainerRegistry).azurecr.io/$(dockerImageName):$(dockerImageTag)
+          $(azureContainerRegistry).azurecr.io/$(dockerImageName):latest # Optionally tag as 'latest'
+
+    - task: Docker@2
+      displayName: 'Push Docker Image to ACR'
+      inputs:
+        command: 'push'
+        tags: |
+          $(azureContainerRegistry).azurecr.io/$(dockerImageName):$(dockerImageTag)
+          $(azureContainerRegistry).azurecr.io/$(dockerImageName):latest
+
+    - publish: $(Build.ArtifactStagingDirectory)
+      artifact: drop
+      displayName: 'Publish Build Artifacts'
